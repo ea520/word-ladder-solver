@@ -1,4 +1,4 @@
-# Word Ladde Solver
+# Word Ladder Solver
 The rules of the game can be found [here](https://en.wikipedia.org/wiki/Word_ladder).
 
 Given a new-line-separated list of 4 letter words, a starting word and an ending word, the programme returns shortest paths from the starting word to the ending one (if such paths exist).
