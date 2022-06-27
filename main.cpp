@@ -4,7 +4,7 @@
 std::vector<std::string> words;
 std::list<const std::string *> unvisited;
 std::unordered_map<const std::string *, size_t> cache;
-bool dijkstra = false;
+bool dijkstra = true;
 int main(int argc, char *argv[])
 {
     argparse::ArgumentParser program("weaver");
@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
 
     program.add_argument("-d", "--dijkstra")
         .help("Whether to use Dijkstra (slower but gives all solutions) or A*")
-        .default_value(false)
+        .default_value(true)
         .implicit_value(true);
     try
     {
