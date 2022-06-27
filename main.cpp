@@ -36,13 +36,13 @@ int main(int argc, char *argv[])
     
     if (end == &*words.end())
     {
-        std::cerr << "The starting word (" << *end << ") is not in the word list\n"; // again end and start are swapped
+        std::cerr << "The starting word (" << to_upper(program.get<std::string>("-e")) << ") is not in the word list\n"; // again end and start are swapped
         return -1;
     }
     
     if (start == &*words.end())
     {
-        std::cerr << "The ending word (" << *start << ") is not in the worrd list\n";
+        std::cerr << "The ending word (" << to_upper(program.get<std::string>("-s")) << ") is not in the word list\n";
         return -1;
     }
     
