@@ -5,14 +5,14 @@ Given a new-line-separated list of 4 letter words, a starting word and an ending
 ## Installation
 ### Linux
 ```bash
-g++-11 main.cpp weaver.cpp -O3 -oweaver --std=c++17
+g++-11 main.cpp solver.cpp -O3 -osolver --std=c++17
 ```
 ### Other
 It should't be hard: c++17 is required and there are just 2 cpp files and no external libraries
 
 ## Usage
 ```bash
-./weaver -l word-list.txt -start PASS -end Scab --dijkstra # it's case insensitive for start and end
+./solver -l word-list.txt -start PASS -end Scab --dijkstra # it's case insensitive for start and end
 ```
 ## Example output
 ```
