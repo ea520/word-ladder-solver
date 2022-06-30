@@ -81,7 +81,18 @@ int main(int argc, char *argv[])
     }
 
     get_distances(*start.base(), *end.base());
-    node_t root = {{}, end.base()};
+    auto comp = [](std::pair<const std::string *, size_t> left, std::pair<const std::string *, size_t> right)
+    {
+        size_t left_comp = left.second == SIZE_MAX ? 0 : left.second;
+        size_t right_comp = right.second == SIZE_MAX ? 0 : right.second;
+        return left_comp < right_comp;
+    };
+    auto furthest = std::max_element(cache.begin(), cache.end(), comp);
+    std::cout << "Furthest word: " << *furthest->first << " distance = " << furthest->second << std::endl;
+    if (cache[end.base()] == SIZE_MAX)
+    {
+        fmt::print(fg(fmt::color::red) | fmt::emphasis::bold, "No path exists between {} and {}\n", *start.base(), *end.base());
+    }
     size_t visited_count = std::count_if(cache.begin(), cache.end(), [](std::pair<const std::string *, size_t> s)
                                          { return s.second != SIZE_MAX; });
     LOG(fg(fmt::color::yellow) | fmt::emphasis::bold, "There are {} known reachable words\n", visited_count);
@@ -100,7 +111,7 @@ int main(int argc, char *argv[])
                     fmt::print("{}", c);
                 i++;
             }
-            std::cout << (node != end.base() ? " -> " : "");
+            std::cout << (node != end.base() ? " -> " : "\n");
         }
         std::cout << std::endl;
     }
