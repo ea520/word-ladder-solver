@@ -118,41 +118,28 @@ void get_distances(const std::string &start, const std::string &end)
     }
 }
 
-void make_tree(const std::string &start, node_t &node)
+std::vector<std::vector<const std::string *>> get_paths(const std::string &node)
 {
-    if (cache[node.value] == SIZE_MAX || node.value == &start)
+    int my_dist = cache[&node];
+    if (my_dist == SIZE_MAX)
     {
-        return;
+        std::exit(1);
     }
-
-    auto neighbours = get_neighbours(*node.value);
-    auto min = std::min_element(neighbours.begin(), neighbours.end(), pred);
+    else if (my_dist == 0)
+    {
+        return {{&node}};
+    }
+    auto neighbours = get_neighbours(node);
+    std::vector<std::vector<const std::string *>> out;
     for (auto i = neighbours.begin(), toofar = neighbours.end(); i != toofar; ++i)
-        if (cache[*i] == cache[*min])
+        if (cache[*i] == cache[&node] - 1)
         {
-            node.children.push_back({{}, *i});
-            make_tree(start, node.children.back());
+            std::vector<std::vector<const std::string *>> new_paths = get_paths(**i.base());
+            for (auto &path : new_paths)
+            {
+                path.push_back(&node);
+                out.push_back(path);
+            }
         }
-}
-
-void print_tree(node_t root, int depth)
-{
-    if (cache[root.value] == SIZE_MAX)
-    {
-        std::cout << "No path exists between the words" << std::endl;
-        return;
-    }
-    if (root.children.size() == 0)
-    {
-        std::cout << *root.value;
-        return;
-    }
-    for (auto child : root.children)
-    {
-        std::cout << *root.value << " -> ";
-        print_tree(child, depth + 1);
-        if (root.children.size() > 1)
-            std::cout << std::endl;
-        std::cout << std::string(8 * depth, ' ');
-    }
+    return out;
 }

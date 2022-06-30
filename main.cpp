@@ -2,6 +2,8 @@
 #include "argparse.h"
 #include <chrono>
 #include <cstdarg>
+#define FMT_HEADER_ONLY
+#include "fmt/color.h"
 std::vector<std::string> words;
 std::list<const std::string *> unvisited;
 std::unordered_map<const std::string *, size_t> cache;
@@ -10,15 +12,14 @@ size_t word_length;
 
 #ifndef NDEBUG
 template <typename... Args>
-int logf(const char *f, Args... args)
+void LOG(Args... args)
 {
-    return printf(f, args...);
+    fmt::print(args...);
 }
 #else
 template <typename... Args>
-int logf(const char *f, Args... args)
+void LOG(Args... args)
 {
-    return 0;
 }
 #endif
 
@@ -47,12 +48,12 @@ int main(int argc, char *argv[])
     dijkstra = program.get<bool>("-d");
 
     // swap end and start as this implementation makes it easier to print from end to start
-    const std::string _start = to_upper(program.get<std::string>("-e"));
-    const std::string _end = to_upper(program.get<std::string>("-s"));
+    const std::string _start = to_upper(program.get<std::string>("-s"));
+    const std::string _end = to_upper(program.get<std::string>("-e"));
 
     if (_end.size() != _start.size())
     {
-        std::cerr << "Start and end words must have the same length" << std::endl;
+        fmt::print(fg(fmt::color::red) | fmt::emphasis::bold, "Start and end words must have the same length\n");
         std::exit(1);
     }
 
@@ -63,17 +64,16 @@ int main(int argc, char *argv[])
     auto end = std::find(words.begin(), words.end(), _end);
     if (end == words.end())
     {
-        std::cerr << "The starting word (" << _end << ") is not in the word list\n";
+        fmt::print(fg(fmt::color::red) | fmt::emphasis::bold, "The ending word ({}) is not in the word list\n", _end);
         std::exit(1);
     }
 
     if (start == words.end())
     {
-        std::cerr << "The ending word (" << _start << ") is not in the word list\n";
+        fmt::print(fg(fmt::color::red) | fmt::emphasis::bold, "The starting word ({}) is not in the word list\n", _start);
         std::exit(1);
     }
-
-    logf("Searching for paths from %s to %s ...\n", end.base()->c_str(), start.base()->c_str());
+    LOG(fg(fmt::color::yellow) | fmt::emphasis::bold, "Searching for paths from {} to {} ...\n", *end.base(), *start.base());
 
     for (const std::string &word : words)
     {
@@ -82,11 +82,26 @@ int main(int argc, char *argv[])
 
     get_distances(*start.base(), *end.base());
     node_t root = {{}, end.base()};
-    make_tree(*start.base(), root);
     size_t visited_count = std::count_if(cache.begin(), cache.end(), [](std::pair<const std::string *, size_t> s)
                                          { return s.second != SIZE_MAX; });
-    logf("There are %llu known reachable words\n", visited_count);
+    LOG(fg(fmt::color::yellow) | fmt::emphasis::bold, "There are {} known reachable words\n", visited_count);
 
-    print_tree(root);
-    std::cout << std::endl;
+    auto paths = get_paths(*end.base());
+    for (auto &path : paths)
+    {
+        for (const std::string *node : path)
+        {
+            size_t i = 0;
+            for (char c : *node)
+            {
+                if ((*end.base())[i] == c)
+                    fmt::print(fg(fmt::color::green) | fmt::emphasis::bold, "{}", c);
+                else
+                    fmt::print("{}", c);
+                i++;
+            }
+            std::cout << (node != end.base() ? " -> " : "");
+        }
+        std::cout << std::endl;
+    }
 }

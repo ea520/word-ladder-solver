@@ -13,9 +13,7 @@ struct node_t
     const std::string *value{};
 };
 
-void make_tree(const std::string &start, node_t &node);
-void print_tree(node_t root, int depth = 0);
-
+std::vector<std::vector<const std::string *>> get_paths(const std::string &node);
 extern std::vector<std::string> words;
 extern std::list<const std::string *> unvisited;
 extern std::unordered_map<const std::string *, size_t> cache;
