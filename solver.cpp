@@ -22,8 +22,8 @@ std::vector<std::string> load_words(const std::string &filename)
     std::vector<std::string> lines;
     while (std::getline(file, line))
     {
-        assert(line.size() == 4);
-        lines.push_back(to_upper(line));
+        if (line.size() == word_length)
+            lines.push_back(to_upper(line));
     }
     return lines;
 }
@@ -31,7 +31,7 @@ std::vector<std::string> load_words(const std::string &filename)
 size_t hamming_distance(const std::string &s1, const std::string &s2)
 {
     size_t dist = 0;
-    for (size_t i = 0; i < 4; i++)
+    for (size_t i = 0; i < word_length; i++)
         dist += (s1[i] == s2[i] ? 0 : 1);
     return dist;
 }
@@ -46,6 +46,17 @@ std::vector<const std::string *> get_neighbours(const std::string &node)
     return output;
 }
 
+std::vector<const std::string *> get_unseen_neighbours(const std::string &node)
+{
+    std::vector<const std::string *> output;
+    for (const auto &other : unvisited)
+    {
+        if (hamming_distance(node, *other) == 1)
+            output.push_back(other);
+    }
+    return output;
+}
+
 std::unordered_map<const std::string *, size_t> get_cache()
 {
     std::unordered_map<const std::string *, size_t> cache;
@@ -55,55 +66,61 @@ std::unordered_map<const std::string *, size_t> get_cache()
     return cache;
 }
 
-auto pred = [](const std::string *left, const std::string *right)
+bool pred(const std::string *left, const std::string *right)
 {
     return cache[left] < cache[right];
 };
+
+inline size_t safe_add(size_t left, size_t right)
+{
+    return left > SIZE_MAX - right ? SIZE_MAX : left + right;
+}
 
 void get_distances(const std::string &start, const std::string &end)
 {
     cache = get_cache();
     cache[&start] = 0;
-    size_t prev_count = SIZE_MAX;
     auto pred_approx = [end](const std::string *left, const std::string *right)
     {
-        size_t left_approx = hamming_distance(*left, end);
-        size_t right_approx = hamming_distance(*right, end);
+        size_t left_dist_from_start = cache[left];
+        size_t right_dist_from_start = cache[right];
+        size_t left_approx_dist_to_end = hamming_distance(*left, end);
+        size_t right_approx_dist_to_end = hamming_distance(*right, end);
 
-        size_t left_value = cache[left] < SIZE_MAX ? cache[left] + left_approx : SIZE_MAX;
-        size_t right_value = cache[right] < SIZE_MAX ? cache[right] + right_approx : SIZE_MAX;
-        return left_value < right_value;
+        return safe_add(left_approx_dist_to_end, left_dist_from_start) < safe_add(right_approx_dist_to_end, right_dist_from_start);
     };
-    while (unvisited.size() != prev_count && unvisited.size() > 0)
+
+    while (unvisited.size() > 0)
     {
-        prev_count = unvisited.size();
         const std::string *min;
         if (dijkstra)
-            min = *std::min_element(unvisited.begin(), unvisited.end(), pred);
+        {
+            min = *std::min_element(unvisited.begin(), unvisited.end(), pred); // find the minimum unvisited distance to the start
+            for (const std::string *s : get_unseen_neighbours(*min))           // loop through that word's unvisited neighbours
+            {
+                cache[s] = std::min(cache[s], safe_add(cache[min], 1)); // if a shorter path to a neighhbour is found, update it
+            }
+            unvisited.remove(min); // the minimum has now been visited
+        }
         else
         {
             min = *std::min_element(unvisited.begin(), unvisited.end(), pred_approx);
             if (min == &end)
             {
-                break;
+                break; // don't bother filling the whole graph
             }
+            for (const std::string *s : get_unseen_neighbours(*min)) // loop through that word's unvisited neighbours
+            {
+                cache[s] = std::min(cache[s], safe_add(cache[min], 1)); // if a shorter path to a neighhbour is found, update it
+            }
+            unvisited.remove(min); // the minimum has now been visited
         }
-        for (const std::string *s : get_neighbours(*min))
-        {
-            size_t min_dist = cache[min];
-            cache[s] = std::min(cache[s], cache[min] == SIZE_MAX ? cache[min] : min_dist + 1);
-        }
-        unvisited.remove(*std::min_element(unvisited.begin(), unvisited.end(), pred));
     }
 }
 
 void make_tree(const std::string &start, node_t &node)
 {
-    if (cache[node.value] == SIZE_MAX)
-    {
-        return;
-    }
-    if (node.value == &start)
+    if (cache[node.value] == SIZE_MAX || node.value == &start)
     {
         return;
     }

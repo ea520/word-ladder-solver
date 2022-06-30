@@ -20,3 +20,4 @@ extern std::vector<std::string> words;
 extern std::list<const std::string *> unvisited;
 extern std::unordered_map<const std::string *, size_t> cache;
 extern bool dijkstra;
+extern size_t word_length;

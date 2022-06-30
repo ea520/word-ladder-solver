@@ -1,20 +1,37 @@
 #include "solver.h"
 #include "argparse.h"
 #include <chrono>
+#include <cstdarg>
 std::vector<std::string> words;
 std::list<const std::string *> unvisited;
 std::unordered_map<const std::string *, size_t> cache;
 bool dijkstra = true;
+size_t word_length;
+
+#ifndef NDEBUG
+template <typename... Args>
+int logf(const char *f, Args... args)
+{
+    return printf(f, args...);
+}
+#else
+template <typename... Args>
+int logf(const char *f, Args... args)
+{
+    return 0;
+}
+#endif
+
 int main(int argc, char *argv[])
 {
     argparse::ArgumentParser program("weaver");
-    program.add_argument("-l", "--word-list").help("Path to the list of keywords").default_value(std::string("word-list.txt"));
+    program.add_argument("-l", "--word-list").help("Path to the (new-line-separated) list of keywords").default_value(std::string("word-list.txt"));
 
-    program.add_argument("-s", "--start").help("The starting word in the game (must be 4 letters)").required().default_value(std::string("SLOW"));
+    program.add_argument("-s", "--start").help("The starting word in the game").required().default_value(std::string("SLOW"));
 
-    program.add_argument("-e", "--end").help("The ending word in the game (must be 4 letters)").required().default_value(std::string("FAST"));
+    program.add_argument("-e", "--end").help("The ending word in the game").required().default_value(std::string("FAST"));
 
-    program.add_argument("-d", "--dijkstra").help("Whether to use Dijkstra (slower but gives all solutions) or A*").default_value(true).implicit_value(true);
+    program.add_argument("-d", "--dijkstra").help("Whether to use Dijkstra (slower but gives all solutions) or A*").default_value(false).implicit_value(true);
     try
     {
         program.parse_args(argc, argv);
@@ -25,42 +42,51 @@ int main(int argc, char *argv[])
         std::cerr << program;
         std::exit(1);
     }
-    
+
     std::string filename = program.get<std::string>("-l");
     dijkstra = program.get<bool>("-d");
-    words = load_words(filename);
-    
+
     // swap end and start as this implementation makes it easier to print from end to start
-    const std::string *start = &*std::find(words.begin(), words.end(), to_upper(program.get<std::string>("-e")));
-    const std::string *end = &*std::find(words.begin(), words.end(), to_upper(program.get<std::string>("-s")));
-    
-    if (end == &*words.end())
+    const std::string _start = to_upper(program.get<std::string>("-e"));
+    const std::string _end = to_upper(program.get<std::string>("-s"));
+
+    if (_end.size() != _start.size())
     {
-        std::cerr << "The starting word (" << to_upper(program.get<std::string>("-s")) << ") is not in the word list\n"; // again end and start are swapped
-        return -1;
+        std::cerr << "Start and end words must have the same length" << std::endl;
+        std::exit(1);
     }
-    
-    if (start == &*words.end())
+
+    word_length = _end.length();
+    words = load_words(filename);
+
+    auto start = std::find(words.begin(), words.end(), _start);
+    auto end = std::find(words.begin(), words.end(), _end);
+    if (end == words.end())
     {
-        std::cerr << "The ending word (" << to_upper(program.get<std::string>("-e")) << ") is not in the word list\n";
-        return -1;
+        std::cerr << "The starting word (" << _end << ") is not in the word list\n";
+        std::exit(1);
     }
-    
-    std::cerr << *end + " -> " + *start << std::endl;
+
+    if (start == words.end())
+    {
+        std::cerr << "The ending word (" << _start << ") is not in the word list\n";
+        std::exit(1);
+    }
+
+    logf("Searching for paths from %s to %s ...\n", end.base()->c_str(), start.base()->c_str());
 
     for (const std::string &word : words)
     {
         unvisited.push_back(&word);
     }
-    
-    auto t0 = std::chrono::high_resolution_clock::now();
-    get_distances(*start, *end);
-    auto t1 = std::chrono::high_resolution_clock::now();
-    node_t root = {{}, end};
-    make_tree(*start, root);
-    std::cerr << "Duration: " << std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count() << "ms" << std::endl;
+
+    get_distances(*start.base(), *end.base());
+    node_t root = {{}, end.base()};
+    make_tree(*start.base(), root);
     size_t visited_count = std::count_if(cache.begin(), cache.end(), [](std::pair<const std::string *, size_t> s)
                                          { return s.second != SIZE_MAX; });
-    std::cerr << "Number of nodes seen " << visited_count << std::endl;
+    logf("There are %llu known reachable words\n", visited_count);
+
     print_tree(root);
+    std::cout << std::endl;
 }
