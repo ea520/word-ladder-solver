@@ -4,11 +4,6 @@
 #include <cstdarg>
 #define FMT_HEADER_ONLY
 #include "fmt/color.h"
-std::vector<std::string> words;
-std::list<const std::string *> unvisited;
-std::unordered_map<const std::string *, size_t> cache;
-bool dijkstra = true;
-size_t word_length;
 
 #ifndef NDEBUG
 template <typename... Args>
@@ -33,6 +28,7 @@ int main(int argc, char *argv[])
     program.add_argument("-e", "--end").help("The ending word in the game").required().default_value(std::string("FAST"));
 
     program.add_argument("-d", "--dijkstra").help("Whether to use Dijkstra (slower but gives all solutions) or A*").default_value(false).implicit_value(true);
+
     try
     {
         program.parse_args(argc, argv);
@@ -45,7 +41,7 @@ int main(int argc, char *argv[])
     }
 
     std::string filename = program.get<std::string>("-l");
-    dijkstra = program.get<bool>("-d");
+    bool dijkstra = program.get<bool>("-d");
 
     // swap end and start as this implementation makes it easier to print from end to start
     const std::string _start = to_upper(program.get<std::string>("-s"));
@@ -57,11 +53,16 @@ int main(int argc, char *argv[])
         std::exit(1);
     }
 
-    word_length = _end.length();
-    words = load_words(filename);
-
-    auto start = std::find(words.begin(), words.end(), _start);
-    auto end = std::find(words.begin(), words.end(), _end);
+    size_t word_length = _end.length();
+    auto words = load_words(filename, word_length);
+    auto predicate = [](const std::string *val, const std::string &value)
+    {
+        return *val == value;
+    };
+    auto start = std::find_if(words.begin(), words.end(), [_start, predicate](const std::string *val)
+                              { return predicate(val, _start); });
+    auto end = std::find_if(words.begin(), words.end(), [_end, predicate](const std::string *val)
+                            { return predicate(val, _end); });
     if (end == words.end())
     {
         fmt::print(fg(fmt::color::red) | fmt::emphasis::bold, "The ending word ({}) is not in the word list\n", _end);
@@ -73,31 +74,24 @@ int main(int argc, char *argv[])
         fmt::print(fg(fmt::color::red) | fmt::emphasis::bold, "The starting word ({}) is not in the word list\n", _start);
         std::exit(1);
     }
-    LOG(fg(fmt::color::yellow) | fmt::emphasis::bold, "Searching for paths from {} to {} ...\n", *end.base(), *start.base());
+    LOG(fg(fmt::color::yellow) | fmt::emphasis::bold, "Searching for paths from {} to {} ...\n", **start.base(), **end.base());
 
-    for (const std::string &word : words)
-    {
-        unvisited.push_back(&word);
-    }
-
-    get_distances(*start.base(), *end.base());
+    auto cache = get_distances(**start.base(), **end.base(), words, dijkstra);
     auto comp = [](std::pair<const std::string *, size_t> left, std::pair<const std::string *, size_t> right)
     {
         size_t left_comp = left.second == SIZE_MAX ? 0 : left.second;
         size_t right_comp = right.second == SIZE_MAX ? 0 : right.second;
         return left_comp < right_comp;
     };
-    auto furthest = std::max_element(cache.begin(), cache.end(), comp);
-    std::cout << "Furthest word: " << *furthest->first << " distance = " << furthest->second << std::endl;
-    if (cache[end.base()] == SIZE_MAX)
+    if (cache[*end.base()] == SIZE_MAX)
     {
-        fmt::print(fg(fmt::color::red) | fmt::emphasis::bold, "No path exists between {} and {}\n", *start.base(), *end.base());
+        fmt::print(fg(fmt::color::red) | fmt::emphasis::bold, "No path exists between {} and {}\n", **start.base(), **end.base());
     }
     size_t visited_count = std::count_if(cache.begin(), cache.end(), [](std::pair<const std::string *, size_t> s)
                                          { return s.second != SIZE_MAX; });
-    LOG(fg(fmt::color::yellow) | fmt::emphasis::bold, "There are {} known reachable words\n", visited_count);
+    LOG(fg(fmt::color::yellow) | fmt::emphasis::bold, "{} words have been visited ({}%)\n", visited_count, (double)visited_count / (double)cache.size() * 100.);
 
-    auto paths = get_paths(*end.base());
+    auto paths = get_paths(**end.base(), cache, words);
     for (auto &path : paths)
     {
         for (const std::string *node : path)
@@ -105,13 +99,13 @@ int main(int argc, char *argv[])
             size_t i = 0;
             for (char c : *node)
             {
-                if ((*end.base())[i] == c)
+                if ((**end.base())[i] == c)
                     fmt::print(fg(fmt::color::green) | fmt::emphasis::bold, "{}", c);
                 else
                     fmt::print("{}", c);
                 i++;
             }
-            std::cout << (node != end.base() ? " -> " : "\n");
+            std::cout << (node != *end.base() ? " -> " : "\n");
         }
         std::cout << std::endl;
     }
