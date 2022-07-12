@@ -5,7 +5,7 @@ Given a new-line-separated list of 4 letter words, a starting word and an ending
 ## Installation
 ### Linux
 ```bash
-g++-11 longest-paths.cpp -O3 -olongest-paths.out
+g++-11 approx-diameter.cpp -O3 -oapprox-diameter.out
 g++-11 shortest-paths.cpp -O3 -oshortest-paths.out
 ```
 ### Other
@@ -29,10 +29,10 @@ sys     0m0.008s
 
 
 ```
-$ time ./longest-path.out -n 5
+$ time ./approx-diameter.out -n 5
 Finding the unconnected graphs...
 100.00%
-Finding longest optimal path...
+Finding approximate diameter of the graph...
 100.00%
 PATH LENGTH: 27
 APIAN -> AVIAN -> AVION -> ANION -> ANCON -> ASCON -> ASCOT -> ASSOT -> ASSET -> ASSES -> APSES -> APRES -> AURES -> SURES -> SERES -> SERRS -> SEARS -> SNARS -> SNARY -> UNARY -> UNARM -> INARM -> INERM -> INERT -> INEPT -> INAPT -> UNAPT

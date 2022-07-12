@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
     std::vector<std::vector<const std::string *>> unconnected_graphs = get_unconnected_graphs(words);
     std::sort(unconnected_graphs.begin(), unconnected_graphs.end(), [](const std::vector<const std::string *> &v1, const std::vector<const std::string *> &v2)
               { return v1.size() > v2.size(); });
-    fmt::print(fg(fmt::color::yellow) | fmt::emphasis::bold, "Finding longest optimal path...\n", word_length);
+    fmt::print(fg(fmt::color::yellow) | fmt::emphasis::bold, "Finding approximete diameter of the graph...\n", word_length);
     size_t words_seen = 0, max_dist = 0;
 
     for (size_t i = 0; i < unconnected_graphs.size(); i++)
