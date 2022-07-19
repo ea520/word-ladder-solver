@@ -23,11 +23,12 @@ std::vector<const std::string *> load_words(const std::string &filename, size_t 
         std::ifstream file(filename, std::ifstream::in);
         if (!file.is_open())
         {
-            printf("File doesn't exist");
+            printf("File doesn't exist\n");
         }
         std::string line;
         while (std::getline(file, line))
         {
+            line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
             if (line.size() == word_length)
                 _words.push_back(to_upper(line));
         }
@@ -97,14 +98,14 @@ std::unordered_map<const std::string *, size_t> get_distances(const std::string 
         const std::string *min;
         if (dijkstra)
         {
-            auto pred = [cache](const std::string *left, const std::string *right)
+            auto pred = [&cache](const std::string *left, const std::string *right)
             {
                 return cache.at(left) < cache.at(right);
             };
             min = *std::min_element(unvisited.begin(), unvisited.end(), pred); // find the minimum unvisited distance to the start
             if (cache.at(min) == SIZE_MAX)
             {
-                assert(std::none_of(unvisited.begin(), unvisited.end(), [cache](const std::string *s)
+                assert(std::none_of(unvisited.begin(), unvisited.end(), [&cache](const std::string *s)
                                     { return cache.at(s) < SIZE_MAX; }));
                 break;
             }
@@ -116,7 +117,7 @@ std::unordered_map<const std::string *, size_t> get_distances(const std::string 
         }
         else
         {
-            auto pred_approx = [end, cache](const std::string *left, const std::string *right)
+            auto pred_approx = [&end, &cache](const std::string *left, const std::string *right)
             {
                 size_t left_dist_from_start = cache.at(left);
                 size_t right_dist_from_start = cache.at(right);
@@ -157,12 +158,42 @@ std::vector<std::vector<const std::string *>> get_paths(const std::string &node,
     for (auto i = neighbours.begin(), toofar = neighbours.end(); i != toofar; ++i)
         if (cache.at(*i) == cache.at(&node) - 1)
         {
-            std::vector<std::vector<const std::string *>> new_paths = get_paths(**i.base(), cache, words);
+            std::vector<std::vector<const std::string *>> new_paths = get_paths(**i, cache, words);
             for (auto &path : new_paths)
             {
                 path.push_back(&node);
                 out.push_back(path);
             }
         }
+    return out;
+}
+
+std::vector<const std::string *> get_path(const std::string &node, const std::unordered_map<const std::string *, size_t> &cache, const std::vector<const std::string *> &words)
+{
+    int my_dist = cache.at(&node);
+    if (my_dist == SIZE_MAX)
+    {
+        std::exit(1);
+    }
+    else if (my_dist == 0)
+    {
+        return {&node};
+    }
+    auto neighbours = get_neighbours(node, words);
+    const std::string *next = nullptr;
+    for (const std::string *s : get_neighbours(node, words))
+    {
+        if (cache.at(&node) - 1 == cache.at(s))
+        {
+            next = s;
+            break;
+        }
+    }
+    if (next == nullptr)
+    {
+        std::cout << "UNKNOWN ERROR" << std::endl;
+    }
+    auto out = get_path(*next, cache, words);
+    out.push_back(&node);
     return out;
 }

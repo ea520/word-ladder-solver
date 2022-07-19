@@ -74,39 +74,37 @@ int main(int argc, char *argv[])
         fmt::print(fg(fmt::color::red) | fmt::emphasis::bold, "The starting word ({}) is not in the word list\n", _start);
         std::exit(1);
     }
-    LOG(fg(fmt::color::yellow) | fmt::emphasis::bold, "Searching for paths from {} to {} ...\n", **start.base(), **end.base());
+    LOG(fg(fmt::color::yellow) | fmt::emphasis::bold, "Searching for paths from {} to {} ...\n", **start, **end);
 
-    auto cache = get_distances(**start.base(), **end.base(), words, dijkstra);
+    auto cache = get_distances(**start, **end, words, dijkstra);
     auto comp = [](std::pair<const std::string *, size_t> left, std::pair<const std::string *, size_t> right)
     {
         size_t left_comp = left.second == SIZE_MAX ? 0 : left.second;
         size_t right_comp = right.second == SIZE_MAX ? 0 : right.second;
         return left_comp < right_comp;
     };
-    if (cache[*end.base()] == SIZE_MAX)
+    if (cache[*end] == SIZE_MAX)
     {
-        fmt::print(fg(fmt::color::red) | fmt::emphasis::bold, "No path exists between {} and {}\n", **start.base(), **end.base());
+        fmt::print(fg(fmt::color::red) | fmt::emphasis::bold, "No path exists between {} and {}\n", **start, **end);
     }
     size_t visited_count = std::count_if(cache.begin(), cache.end(), [](std::pair<const std::string *, size_t> s)
                                          { return s.second != SIZE_MAX; });
-    LOG(fg(fmt::color::yellow) | fmt::emphasis::bold, "{} words have been visited ({}%)\n", visited_count, (double)visited_count / (double)cache.size() * 100.);
+    LOG(fg(fmt::color::yellow) | fmt::emphasis::bold, "{} words have been visited ({:.2f}%)\n", visited_count, (double)visited_count / (double)cache.size() * 100.);
 
-    auto paths = get_paths(**end.base(), cache, words);
-    for (auto &path : paths)
+    auto path = get_path(**end, cache, words);
+    fmt::print(fg(fmt::color::yellow) | fmt::emphasis::bold, "Path length: {}\n", path.size());
+    for (const std::string *node : path)
     {
-        for (const std::string *node : path)
+        size_t i = 0;
+        for (char c : *node)
         {
-            size_t i = 0;
-            for (char c : *node)
-            {
-                if ((**end.base())[i] == c)
-                    fmt::print(fg(fmt::color::green) | fmt::emphasis::bold, "{}", c);
-                else
-                    fmt::print("{}", c);
-                i++;
-            }
-            std::cout << (node != *end.base() ? " -> " : "\n");
+            if ((**end)[i] == c)
+                fmt::print(fg(fmt::color::green) | fmt::emphasis::bold, "{}", c);
+            else
+                fmt::print("{}", c);
+            i++;
         }
-        std::cout << std::endl;
+        std::cout << (node != *end ? " -> " : "\n");
     }
+    std::cout << std::endl;
 }
