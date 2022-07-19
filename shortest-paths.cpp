@@ -76,23 +76,23 @@ int main(int argc, char *argv[])
     }
     LOG(fg(fmt::color::yellow) | fmt::emphasis::bold, "Searching for paths from {} to {} ...\n", **start, **end);
 
-    auto cache = get_distances(**start, **end, words, dijkstra);
+    auto cache = get_distances(*start, *end, words, dijkstra);
     auto comp = [](std::pair<const std::string *, size_t> left, std::pair<const std::string *, size_t> right)
     {
-        size_t left_comp = left.second == SIZE_MAX ? 0 : left.second;
-        size_t right_comp = right.second == SIZE_MAX ? 0 : right.second;
+        size_t left_comp = left.second == INT_MAX ? 0 : left.second;
+        size_t right_comp = right.second == INT_MAX ? 0 : right.second;
         return left_comp < right_comp;
     };
-    if (cache[*end] == SIZE_MAX)
+    if (cache[*end] == INT_MAX)
     {
         fmt::print(fg(fmt::color::red) | fmt::emphasis::bold, "No path exists between {} and {}\n", **start, **end);
     }
     size_t visited_count = std::count_if(cache.begin(), cache.end(), [](std::pair<const std::string *, size_t> s)
-                                         { return s.second != SIZE_MAX; });
+                                         { return s.second != INT_MAX; });
     LOG(fg(fmt::color::yellow) | fmt::emphasis::bold, "{} words have been visited ({:.2f}%)\n", visited_count, (double)visited_count / (double)cache.size() * 100.);
 
     auto path = get_path(**end, cache, words);
-    fmt::print(fg(fmt::color::yellow) | fmt::emphasis::bold, "Path length: {}\n", path.size());
+    fmt::print(fg(fmt::color::yellow) | fmt::emphasis::bold, "Path length: {}\n", path.size() - 1);
     for (const std::string *node : path)
     {
         size_t i = 0;

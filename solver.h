@@ -8,6 +8,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <limits.h>
 
 std::string to_upper(std::string input)
 {
@@ -46,6 +47,7 @@ size_t hamming_distance(const std::string &s1, const std::string &s2)
         dist += (s1[i] == s2[i] ? 0 : 1);
     return dist;
 }
+
 std::vector<const std::string *> get_neighbours(const std::string &node, const std::vector<const std::string *> &words)
 {
     std::vector<const std::string *> output;
@@ -73,7 +75,7 @@ std::unordered_map<const std::string *, size_t> get_cache(const std::vector<cons
     std::unordered_map<const std::string *, size_t> cache;
     cache.clear();
     for (const std::string *s : words)
-        cache[s] = SIZE_MAX;
+        cache[s] = INT_MAX;
     return cache;
 }
 
@@ -83,69 +85,49 @@ std::list<const std::string *> get_unvisited(const std::vector<const std::string
     return ret;
 }
 
-inline size_t safe_add(size_t left, size_t right)
-{
-    return left > SIZE_MAX - right ? SIZE_MAX : left + right;
-}
-
-std::unordered_map<const std::string *, size_t> get_distances(const std::string &start, const std::string &end, const std::vector<const std::string *> &words, bool dijkstra)
+std::unordered_map<const std::string *, size_t> get_distances(const std::string *start, const std::string *end, const std::vector<const std::string *> &words, bool dijkstra)
 {
     std::list<const std::string *> unvisited(words.begin(), words.end());
-    auto cache = get_cache(words);
-    cache[&start] = 0;
+    std::unordered_map<const std::string *, std::pair<size_t, size_t>> hammings;
+    hammings.reserve(words.size());
+    for (const std::string *name : words)
+    {
+        hammings[name] = {INT_MAX, dijkstra ? 0 : hamming_distance(*name, *end)};
+    }
+    hammings[start].first = 0;
+
+    auto pred = [&hammings](const std::string *left, const std::string *right) -> bool
+    {
+        return hammings.at(left).first + hammings.at(left).second < hammings.at(right).first + hammings.at(right).second;
+    };
     while (unvisited.size() > 0)
     {
         const std::string *min;
-        if (dijkstra)
+        min = *std::min_element(unvisited.begin(), unvisited.end(), pred); // find the minimum unvisited distance to the start
+        if (hammings.at(min).first == INT_MAX || min == end)
         {
-            auto pred = [&cache](const std::string *left, const std::string *right)
-            {
-                return cache.at(left) < cache.at(right);
-            };
-            min = *std::min_element(unvisited.begin(), unvisited.end(), pred); // find the minimum unvisited distance to the start
-            if (cache.at(min) == SIZE_MAX)
-            {
-                assert(std::none_of(unvisited.begin(), unvisited.end(), [&cache](const std::string *s)
-                                    { return cache.at(s) < SIZE_MAX; }));
-                break;
-            }
-            for (const std::string *s : get_unseen_neighbours(*min, unvisited)) // loop through that word's unvisited neighbours
-            {
-                cache[s] = std::min(cache.at(s), safe_add(cache.at(min), 1)); // if a shorter path to a neighhbour is found, update it
-            }
-            unvisited.remove(min); // the minimum has now been visited
+            break;
         }
-        else
+        for (const std::string *s : get_unseen_neighbours(*min, unvisited)) // loop through that word's unvisited neighbours
         {
-            auto pred_approx = [&end, &cache](const std::string *left, const std::string *right)
-            {
-                size_t left_dist_from_start = cache.at(left);
-                size_t right_dist_from_start = cache.at(right);
-                size_t left_approx_dist_to_end = hamming_distance(*left, end);
-                size_t right_approx_dist_to_end = hamming_distance(*right, end);
-
-                return safe_add(left_approx_dist_to_end, left_dist_from_start) < safe_add(right_approx_dist_to_end, right_dist_from_start);
-            };
-
-            min = *std::min_element(unvisited.begin(), unvisited.end(), pred_approx);
-            if (min == &end || cache.at(min) == SIZE_MAX)
-            {
-                break; // don't bother filling the whole graph
-            }
-            for (const std::string *s : get_unseen_neighbours(*min, unvisited)) // loop through that word's unvisited neighbours
-            {
-                cache[s] = std::min(cache[s], safe_add(cache[min], 1)); // if a shorter path to a neighhbour is found, update it
-            }
-            unvisited.remove(min); // the minimum has now been visited
+            hammings[s].first = std::min(hammings.at(s).first, hammings.at(min).first + 1); // if a shorter path to a neighhbour is found, update it
         }
+        unvisited.remove(min); // the minimum has now been visited
     }
+    std::unordered_map<const std::string *, size_t> cache;
+    cache.reserve(hammings.size());
+    for (const std::string *name : words)
+    {
+        cache[name] = hammings[name].first;
+    }
+
     return cache;
 }
 
 std::vector<std::vector<const std::string *>> get_paths(const std::string &node, const std::unordered_map<const std::string *, size_t> &cache, const std::vector<const std::string *> &words)
 {
-    int my_dist = cache.at(&node);
-    if (my_dist == SIZE_MAX)
+    size_t my_dist = cache.at(&node);
+    if (my_dist == INT_MAX)
     {
         std::exit(1);
     }
@@ -170,8 +152,8 @@ std::vector<std::vector<const std::string *>> get_paths(const std::string &node,
 
 std::vector<const std::string *> get_path(const std::string &node, const std::unordered_map<const std::string *, size_t> &cache, const std::vector<const std::string *> &words)
 {
-    int my_dist = cache.at(&node);
-    if (my_dist == SIZE_MAX)
+    size_t my_dist = cache.at(&node);
+    if (my_dist == INT_MAX)
     {
         std::exit(1);
     }
@@ -181,7 +163,7 @@ std::vector<const std::string *> get_path(const std::string &node, const std::un
     }
     auto neighbours = get_neighbours(node, words);
     const std::string *next = nullptr;
-    for (const std::string *s : get_neighbours(node, words))
+    for (const std::string *s : neighbours)
     {
         if (cache.at(&node) - 1 == cache.at(s))
         {
