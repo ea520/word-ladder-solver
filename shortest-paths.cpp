@@ -20,7 +20,7 @@ void LOG(Args... args)
 
 int main(int argc, char *argv[])
 {
-    argparse::ArgumentParser program("weaver");
+    argparse::ArgumentParser program("shortest-path");
     program.add_argument("-l", "--word-list").help("Path to the (new-line-separated) list of keywords").default_value(std::string("word-list.txt"));
 
     program.add_argument("-s", "--start").help("The starting word in the game").required().default_value(std::string("SLOW"));
