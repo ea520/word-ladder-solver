@@ -19,7 +19,8 @@ int main(int argc, char *argv[])
     argparse::ArgumentParser program("bfs");
     program.add_argument("-n")
         .help("Word length")
-        .scan<'i', int>();
+        .scan<'i', int>()
+        .default_value<int>(2);
     program.add_argument("--graph")
         .help("The path to the graph json file")
         .default_value<std::string>(std::string("graph.json"));
@@ -149,20 +150,19 @@ std::vector<std::vector<std::string>> get_subgraphs(const std::vector<std::strin
         const std::string &start = *words.begin();
         auto distances = get_distances_bfs(start, graph);
         std::vector<std::string> subgraph = {start};
-
-        for (auto word_ptr = words.begin(); word_ptr != words.end();)
+        std::unordered_set<std::string> new_words;
+        for (const std::string &word : words)
         {
-            if (distances[*word_ptr] >= 0)
+            if (distances[word] >= 0)
             {
-                subgraph.push_back(std::move(*word_ptr));
-                words.erase(*word_ptr);
-                word_ptr++;
+                subgraph.push_back(std::move(word));
             }
             else
             {
-                ++word_ptr;
+                new_words.insert(std::move(word));
             }
         }
+        words = new_words;
         ret.push_back(std::move(subgraph));
         int progress = 100 - words.size() * 100 / N;
         // print `progress` hashes in square brackets followed by the progress percentage
