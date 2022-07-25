@@ -5,8 +5,8 @@ Given a new-line-separated list of 4 letter words, a starting word and an ending
 ## Installation
 ### Linux
 ```bash
-g++-11 approx-diameter.cpp -O3 -oapprox-diameter.out
-g++-11 shortest-paths.cpp -O3 -oshortest-paths.out
+g++-11 diameter.cpp -o diameter.out -O3 -fopenmp
+g++-11 shortest-paths.cpp -o shortest-paths.out -O3
 ```
 ### Other
 It should't be hard: c++17 is required and each .cpp file is compiled separately.

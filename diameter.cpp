@@ -4,12 +4,11 @@
 #include <vector>
 #include <string>
 #include <algorithm>
-#include <unordered_set>
-#include <queue>
 #include "argparse.h"
 #include <chrono>
 #define FMT_HEADER_ONLY
 #include "fmt/color.h"
+#include "solver.h"
 std::unordered_map<std::string, int> get_distances_bfs(const std::string &start, const nlohmann::json &graph);
 std::vector<std::vector<std::string>> get_subgraphs(const std::vector<std::string> &words, const nlohmann::json &graph);
 
@@ -35,16 +34,11 @@ int main(int argc, char *argv[])
         std::cerr << program;
         std::exit(1);
     }
-    auto to_upper = [](std::string input)
-    {
-        transform(input.begin(), input.end(), input.begin(), ::toupper);
-        return input;
-    };
 
     const int n = program.get<int>("-n");
     const json data = json::parse(std::ifstream(program.get<std::string>("--graph")));
 
-    const std::vector<std::string> names = [&data](int n)
+    const std::vector<std::string> names = [&data](size_t n)
     {
         std::vector<std::string> names;
         for (const auto &[key, value] : data.items())
@@ -57,7 +51,7 @@ int main(int argc, char *argv[])
     struct path_t
     {
         std::string left, right;
-        int dist;
+        int dist = 0;
         bool operator<(const path_t &right)
         {
             return dist < right.dist;
@@ -79,7 +73,7 @@ int main(int argc, char *argv[])
             dists((size_t)subgraph.size());
         int itters = 0;
 #pragma omp parallel for
-        for (int i = 0; i < subgraph.size(); i++)
+        for (size_t i = 0; i < subgraph.size(); i++)
         {
             auto distances = get_distances_bfs(subgraph[i], data);
             auto max_el = std::max_element(distances.begin(), distances.end());
@@ -99,44 +93,6 @@ int main(int argc, char *argv[])
             max_dist = *max_el;
     }
     std::cout << max_dist.left << " -> " << max_dist.right << " " << max_dist.dist << std::endl;
-}
-
-std::unordered_map<std::string, int> get_distances_bfs(const std::string &start, const nlohmann::json &graph)
-{
-    std::unordered_map<std::string, int> distances;
-    const int INF = graph.size(), length = start.size();
-    for (const auto &[key, value] : graph.items())
-    {
-        if (key.size() == length)
-            distances[key] = INF;
-    }
-    std::unordered_set<std::string> visited;
-    std::queue<std::string> pending;
-    distances[start] = 0;
-    pending.push(start);
-    std::string node;
-    while (!pending.empty())
-    {
-        node = pending.front();
-        visited.insert(node);
-        pending.pop();
-        std::vector<std::string>
-            unvisited_neighbours(graph[node].begin(), graph[node].end());
-        for (const std::string &un : unvisited_neighbours)
-        {
-            if (visited.find(un) == visited.end())
-            {
-                distances[un] = std::min(distances[un], distances[node] + 1);
-                pending.push(un);
-            }
-        }
-    }
-    for (auto &[node, dist] : distances)
-    {
-        if (dist == INF)
-            dist = -1;
-    }
-    return distances;
 }
 
 std::vector<std::vector<std::string>> get_subgraphs(const std::vector<std::string> &_words, const nlohmann::json &graph)
