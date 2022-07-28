@@ -1,7 +1,12 @@
 #include "solver.h"
+#include <unordered_map>
+#include <unordered_set>
+#include <queue>
+#include <fstream>
 #include "argparse.h"
 #include <chrono>
 #include <cstdarg>
+#include "json.hpp"
 #define FMT_HEADER_ONLY
 #include "fmt/color.h"
 
@@ -21,13 +26,13 @@ void LOG(Args... args)
 int main(int argc, char *argv[])
 {
     argparse::ArgumentParser program("shortest-path");
-    program.add_argument("-l", "--word-list").help("Path to the (new-line-separated) list of keywords").default_value(std::string("word-list.txt"));
+    program.add_argument("-g", "--graph").help("The graph for the words").default_value(std::string("graph.json"));
 
     program.add_argument("-s", "--start").help("The starting word in the game").required().default_value(std::string("SLOW"));
 
     program.add_argument("-e", "--end").help("The ending word in the game").required().default_value(std::string("FAST"));
 
-    program.add_argument("-d", "--dijkstra").help("Whether to use Dijkstra (slower but gives all solutions) or A*").default_value(false).implicit_value(true);
+    program.add_argument("-d", "--dijkstra").help("Whether to use Dijkstra or breadth first search").default_value(false).implicit_value(true);
 
     try
     {
@@ -40,7 +45,6 @@ int main(int argc, char *argv[])
         std::exit(1);
     }
 
-    std::string filename = program.get<std::string>("-l");
     bool dijkstra = program.get<bool>("-d");
 
     // swap end and start as this implementation makes it easier to print from end to start
@@ -54,57 +58,52 @@ int main(int argc, char *argv[])
     }
 
     size_t word_length = _end.length();
-    auto words = load_words(filename, word_length);
-    auto predicate = [](const std::string *val, const std::string &value)
-    {
-        return *val == value;
-    };
-    auto start = std::find_if(words.begin(), words.end(), [_start, predicate](const std::string *val)
-                              { return predicate(val, _start); });
-    auto end = std::find_if(words.begin(), words.end(), [_end, predicate](const std::string *val)
-                            { return predicate(val, _end); });
-    if (end == words.end())
+    using json = nlohmann::json;
+    const json data = json::parse(std::ifstream(program.get<std::string>("--graph")));
+    const std::vector<std::string> words = data["names"];
+    const std::vector<std::vector<int32_t>> graph = data["graph"];
+    std::vector<int32_t> indexes;
+    for (int i = 0; i < words.size(); i++)
+        if (words[i].size() == _start.size())
+            indexes.push_back(i);
+    auto start_itter = std::lower_bound(words.begin(), words.end(), _start);
+    auto end_itter = std::lower_bound(words.begin(), words.end(), _end);
+
+    if (start_itter == words.end())
     {
         fmt::print(fg(fmt::color::red) | fmt::emphasis::bold, "The ending word ({}) is not in the word list\n", _end);
         std::exit(1);
     }
 
-    if (start == words.end())
+    if (end_itter == words.end())
     {
         fmt::print(fg(fmt::color::red) | fmt::emphasis::bold, "The starting word ({}) is not in the word list\n", _start);
         std::exit(1);
     }
-    LOG(fg(fmt::color::yellow) | fmt::emphasis::bold, "Searching for paths from {} to {} ...\n", **start, **end);
-
-    auto cache = get_distances(*start, *end, words, dijkstra);
-    auto comp = [](std::pair<const std::string *, size_t> left, std::pair<const std::string *, size_t> right)
+    LOG(fg(fmt::color::yellow) | fmt::emphasis::bold, "Searching for paths from {} to {} ...\n", _start, _end);
+    auto get_distances = [dijkstra](int32_t start, int32_t end, const std::vector<int32_t> &indexes, const std::vector<std::vector<int32_t>> &graph)
     {
-        size_t left_comp = left.second == INT_MAX ? 0 : left.second;
-        size_t right_comp = right.second == INT_MAX ? 0 : right.second;
-        return left_comp < right_comp;
+        if (dijkstra)
+            return get_distances_dijkstra(start, end, indexes, graph);
+        else
+            return get_distances_bfs(start, end, indexes, graph);
     };
-    if (cache[*end] == INT_MAX)
-    {
-        fmt::print(fg(fmt::color::red) | fmt::emphasis::bold, "No path exists between {} and {}\n", **start, **end);
-    }
-    size_t visited_count = std::count_if(cache.begin(), cache.end(), [](std::pair<const std::string *, size_t> s)
-                                         { return s.second != INT_MAX; });
-    LOG(fg(fmt::color::yellow) | fmt::emphasis::bold, "{} words have been visited ({:.2f}%)\n", visited_count, (double)visited_count / (double)cache.size() * 100.);
 
-    auto path = get_path(**end, cache, words);
-    fmt::print(fg(fmt::color::yellow) | fmt::emphasis::bold, "Path length: {}\n", path.size() - 1);
-    for (const std::string *node : path)
+    const auto distances = get_distances(start_itter - words.begin(), end_itter - words.begin(), indexes, graph);
+    const auto path = get_path(end_itter - words.begin(), distances, indexes, graph);
+    auto print_similarities = [](const std::string &to_print, const std::string &to_compare)
     {
-        size_t i = 0;
-        for (char c : *node)
-        {
-            if ((**end)[i] == c)
-                fmt::print(fg(fmt::color::green) | fmt::emphasis::bold, "{}", c);
+        for (int i = 0; i < to_print.size(); i++)
+            if (to_print[i] == to_compare[i])
+                fmt::print(fg(fmt::color::green) | fmt::emphasis::bold, "{}", to_print[i]);
             else
-                fmt::print("{}", c);
-            i++;
-        }
-        std::cout << (node != *end ? " -> " : "\n");
+                fmt::print(fg(fmt::color::yellow) | fmt::emphasis::bold, "{}", to_print[i]);
+    };
+    for (const int32_t node : path)
+    {
+        print_similarities(words[node], _end);
+        if (node != end_itter - words.begin())
+            fmt::print(" -> ");
     }
     std::cout << std::endl;
 }
