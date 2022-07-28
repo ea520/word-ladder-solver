@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
 {
     argparse::ArgumentParser program("bfs");
     program.add_argument("-ns")
-        .help("Word length")
+        .help("Word lengths")
         .scan<'i', int>()
         .default_value<std::vector<int>>({2, 3})
         .nargs(argparse::nargs_pattern::at_least_one);
