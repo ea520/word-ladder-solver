@@ -83,12 +83,11 @@ int main(int argc, char *argv[])
             {
                 auto distances = get_distances_bfs(subgraph[i], subgraph, graph);
                 using pair_type = decltype(distances)::value_type;
-                auto max_el = std::max_element(distances.begin(), distances.end(), [](const pair_type &left, const pair_type &right)
-                                               { return left.second < right.second; });
+                auto max_el = std::max_element(distances.begin(), distances.end());
                 path_t p;
                 p.left = names[subgraph[i]];
-                p.right = names[max_el->first];
-                p.dist = max_el->second;
+                p.right = names[max_el - distances.begin()];
+                p.dist = *max_el;
                 dists[i] = p;
                 double progress = 100. * itters++ / subgraph.size();
                 if (itters % 10 == 0)
@@ -107,30 +106,34 @@ int main(int argc, char *argv[])
     }
 }
 
-std::vector<std::vector<int32_t>> get_subgraphs(std::vector<int32_t> words, const std::vector<std::vector<int32_t>> &graph)
+std::unordered_set<int32_t> get_subgraphs(int32_t word, const std::vector<std::vector<int32_t>> &graph)
+{
+    std::unordered_set<int32_t> visited, _new({word});
+    while (_new.size())
+    {
+        std::unordered_set<int32_t> temp;
+        for (int32_t i : _new)
+            if (visited.find(i) == visited.end())
+                temp.insert(graph[i].begin(), graph[i].end());
+        visited.insert(_new.begin(), _new.end());
+        _new = std::move(temp);
+    }
+    return visited;
+}
+std::vector<std::vector<int32_t>> get_subgraphs(std::vector<int32_t> _words, const std::vector<std::vector<int32_t>> &graph)
 {
     std::vector<std::vector<int32_t>> ret;
+    std::unordered_set<int32_t> words(_words.begin(), _words.end());
     size_t N = words.size();
+
     while (words.size())
     {
-        const int32_t &start = *words.begin();
-        auto distances = get_distances_bfs(start, words, graph);
-        std::vector<int32_t> subgraph = {start};
-        std::vector<int32_t> new_words;
-        new_words.reserve(words.size());
-        for (const int32_t &word : words)
+        auto subgraph = get_subgraphs(*words.begin(), graph);
+        for (int32_t word : subgraph)
         {
-            if (distances[word] >= 0)
-            {
-                subgraph.push_back(word);
-            }
-            else
-            {
-                new_words.push_back(word);
-            }
+            words.erase(word);
         }
-        words = std::move(new_words);
-        ret.push_back(std::move(subgraph));
+        ret.emplace_back(subgraph.begin(), subgraph.end());
         double progress = 100. - words.size() * 100. / N;
         // print `progress` hashes in square brackets followed by the progress percentage
         // e.g.[###] 3%

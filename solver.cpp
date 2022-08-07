@@ -8,13 +8,12 @@ std::string to_upper(std::string input)
     return input;
 }
 
-std::unordered_map<int, int> get_distances_bfs(const int32_t start, const int32_t end, const std::vector<int32_t> &indexes, const std::vector<std::vector<int32_t>> &graph)
+std::vector<int32_t> get_distances_bfs(const int32_t start, const int32_t end, const std::vector<int32_t> &indexes, const std::vector<std::vector<int32_t>> &graph)
 {
-    std::unordered_map<int, int> distances;
-    distances.reserve(indexes.size());
-    const int INF = indexes.size();
-    for (int32_t index : indexes)
-        distances[index] = INF;
+    std::vector<int32_t> distances(graph.size(), graph.size());
+    const int INF = graph.size();
+    // for (int32_t index : indexes)
+    //     distances[index] = INF;
     std::unordered_set<int32_t> visited;
     std::queue<int32_t> pending;
     distances[start] = 0;
@@ -36,7 +35,7 @@ std::unordered_map<int, int> get_distances_bfs(const int32_t start, const int32_
             }
         }
     }
-    for (auto &[node, dist] : distances)
+    for (auto &dist : distances)
     {
         if (dist == INF)
             dist = -1;
@@ -44,11 +43,10 @@ std::unordered_map<int, int> get_distances_bfs(const int32_t start, const int32_
     return distances;
 }
 
-std::unordered_map<int, int> get_distances_dijkstra(const int32_t start, const int32_t end, const std::vector<int32_t> &indexes, const std::vector<std::vector<int32_t>> &graph)
+std::vector<int32_t> get_distances_dijkstra(const int32_t start, const int32_t end, const std::vector<int32_t> &indexes, const std::vector<std::vector<int32_t>> &graph)
 {
-    std::unordered_map<int, int> distances;
-    distances.reserve(indexes.size());
-    const int INF = indexes.size();
+    std::vector<int32_t> distances(graph.size(), graph.size());
+    const int INF = graph.size();
     for (int32_t index : indexes)
         distances[index] = INF;
     std::unordered_set<int32_t> unvisited(indexes.begin(), indexes.end());
@@ -68,7 +66,7 @@ std::unordered_map<int, int> get_distances_dijkstra(const int32_t start, const i
         }
         unvisited.erase(*min);
     }
-    for (auto &[node, dist] : distances)
+    for (auto &dist : distances)
     {
         if (dist == INF)
             dist = -1;
@@ -76,19 +74,19 @@ std::unordered_map<int, int> get_distances_dijkstra(const int32_t start, const i
     return distances;
 }
 
-std::unordered_map<int, int> get_distances_dijkstra(const int32_t start, const std::vector<int32_t> &indexes, const std::vector<std::vector<int32_t>> &graph)
+std::vector<int32_t> get_distances_dijkstra(const int32_t start, const std::vector<int32_t> &indexes, const std::vector<std::vector<int32_t>> &graph)
 {
     return get_distances_dijkstra(start, -1, indexes, graph);
 }
 
-std::unordered_map<int, int> get_distances_bfs(const int32_t start, const std::vector<int32_t> &indexes, const std::vector<std::vector<int32_t>> &graph)
+std::vector<int32_t> get_distances_bfs(const int32_t start, const std::vector<int32_t> &indexes, const std::vector<std::vector<int32_t>> &graph)
 {
     return get_distances_bfs(start, -1, indexes, graph);
 }
 
-std::vector<int32_t> get_path(const int node, const std::unordered_map<int, int> &distances, const std::vector<int32_t> &indexes, const std::vector<std::vector<int32_t>> &graph)
+std::vector<int32_t> get_path(const int node, const std::vector<int32_t> &distances, const std::vector<int32_t> &indexes, const std::vector<std::vector<int32_t>> &graph)
 {
-    size_t my_dist = distances.at(node);
+    size_t my_dist = distances[node];
 
     if (my_dist == indexes.size())
     {
@@ -103,7 +101,7 @@ std::vector<int32_t> get_path(const int node, const std::unordered_map<int, int>
     int next = -1;
     for (const int n : neighbours)
     {
-        if (distances.at(node) == distances.at(n) + 1)
+        if (distances[node] == distances[n] + 1)
         {
             next = n;
             break;
